@@ -31,7 +31,7 @@
                         </div>
                                                 <div class="form-group ">
                             <label>@lang('API User')</label>
-                            <input type="text" name="api_user" value="{{ old('api_user') }}" required="required"
+                            <input type="text" name="api_user" value="{{ old('api_user') }}" 
                                    class="form-control form-control-sm">
                             <div class="invalid-feedback">@lang('Please fill in the api User')</div>
                             @error('api_user')
@@ -119,6 +119,7 @@
                                 
                                     <option value="SMM">SMM</option>
                                     <option value="DHRU">DHRU</option>
+                                    <option value="ZDDK">ZDDK</option>
                                
                             </select>
                             @if($errors->has('type'))

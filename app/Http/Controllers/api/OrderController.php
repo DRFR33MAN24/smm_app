@@ -373,6 +373,7 @@ class OrderController extends Controller
 
         $service = Service::findOrFail($request->service);
         $provider = null;
+        $providerInstance= null;
         if (isset($service->api_provider_id)) {
 
             $provider = ApiProvider::find($service->api_provider_id);
@@ -383,9 +384,12 @@ class OrderController extends Controller
 
         $basic = (object) config('basic');
         $quantity = $request->quantity;
-        if ($req['currency'] == 'USD') {
+        $conversion_rate = $req['currency'] != 'USD' ?
+        (float) BusinessSetting::where('type', '=', 'currency_conversion_factor')->first()->value:1;
+
+       
             if ($provider != null) {
-                if ($provider->type == "SMM") {
+               
                     if ($service->min_amount <= $quantity && $service->max_amount >= $quantity) {
                         $user = Auth::user();
                         if ($user->is_reseller) {
@@ -395,557 +399,219 @@ class OrderController extends Controller
                             $userRate = ($service->user_rate) ?? $service->price;
                         }
 
-                        $price = round(($quantity * $userRate), $basic->fraction_number);
+                        $price = round(($quantity * $userRate*$conversion_rate), $basic->fraction_number);
 
 
 
+                        if ($req['currency'] == "USD") {
+                      
+                            if ($user->balance < $price) {
+                                return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
+                            }
+                        } else {
+                            if ($user->lbalance < $price) {
+                                return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
+                            }
+                        }
+
+
+
+                        if (isset($service->api_provider_id)) {
+                            $apiproviderdata = ApiProvider::find($service->api_provider_id);
+
+
+                            $custom_fields = explode(",", $service['custom_fields']);
+                            Log::info($custom_fields);
+                            $params = [];
+                            foreach ($custom_fields as $field) {
+                                if ($field != "") {
+                                    // $fieldFiltered=str_replace(' ','_',$field);
+                    
+                                    $params[$field] = $req[$field];
+                                }
+                            }
+                    
+                            if (isset($service->max_amount)) {
+                                if ($service->max_amount > 1) {
+                                    $params['QNT'] = $req['quantity'];
+                                }
+                            }
+
+                            $details = [
+                               
+                                'service_id'=>$req['service_id'],
+                                'link'=>$req['link'],
+                                'quantity'=>$req['quantity'],
+                                'Zone_ID'=>$req['Zone_ID'],
+                                'User_ID'=>$req['User_ID'],
+                                'params'=>$params
+                            ];
+
+
+                           $result = $providerInstance->placeOrder($apiproviderdata,$details);
+
+                            if (!isset($result['error'])) {
+                                $order = new Order();
+                                $order->user_id = $user->id;
+                                $order->category_id = $req['category'];
+                                $order->service_id = $req['service'];
+                                $order->link = isset($req['link']) && !empty($req['link']) ? $req['link'] : '';
+                                $order->quantity = $req['quantity'];
+                                $order->status = 'processing';
+                                $order->price = $price;
+                                $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : 1;
+                                $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : 1;
+                                $order->status_description = $result["order_id"];
+                                $order->api_order_id = $result["order_id"];
+                                $order->currency = $req['currency'];
+                                $order->save();
+
+                                if ($req['currency'] == "USD") {
+                      
+
+                                    $user->balance -= $price;
+                                } else {
+                                    $user->lbalance -= $price;
+                                }
+
+                                $user->save();
+
+                                $transaction = new Transaction();
+                                $transaction->user_id = $user->id;
+                                $transaction->trx_type = '-';
+                                $transaction->amount = $price;
+                                $transaction->currency = $req['currency'];
+                                $transaction->remarks = 'Place order';
+                                $transaction->trx_id = strRandom();
+                                $transaction->charge = 0;
+                                $transaction->save();
+
+
+                                $msg = [
+                                    'username' => $user->username,
+                                    'price' => $price,
+                                    'currency' => $basic->currency
+                                ];
+                                $action = [
+                                    "link" => route('admin.order.edit', $order->id),
+                                    "icon" => "fas fa-cart-plus text-white"
+                                ];
+                                $this->adminPushNotification('ORDER_CREATE', $msg, $action);
+
+
+
+
+                                return response()->json(['message' => Helpers::translate('successfully created!')], 200);
+
+                            } else {
+                                return response()->json(['message' => $result['error']], 200);
+
+                            }
+                        }
+
+
+
+                    } else {
+                        return response()->json(['errors' => Helpers::error_processor($validator)], 403);
+                    }
+                }
+                else {
+
+
+                    $user = Auth::user();
+                    if ($user->is_reseller) {
+                        $userRate = ($service->user_rate) ?? $service->reseller_price;
+    
+                    } else {
+                        $userRate = ($service->user_rate) ?? $service->price;
+                    }
+    
+                    $price = round(($quantity * $userRate*$conversion_rate), $basic->fraction_number);
+    
+                    if ($req['currency'] == "USD") {
+                      
                         if ($user->balance < $price) {
                             return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
                         }
-
-
-
-                        if (isset($service->api_provider_id)) {
-                            $apiproviderdata = ApiProvider::find($service->api_provider_id);
-                            $postData = [
-                                'key' => $apiproviderdata['api_key'],
-                                'action' => 'add',
-                                'service' => $service->api_service_id,
-                                'link' => isset($req['link']) && !empty($req['link']) ? $req['link'] : '',
-                                'quantity' => $req['quantity']
-                            ];
-
-                            if (isset($req['Zone_ID']))
-                                $postData['Zone ID'] = $req['Zone_ID'];
-                            if (isset($req['User_ID']))
-                                $postData['User ID'] = $req['User_ID'];
-
-                            $postData['runs'] = 1;
-                            $postData['interval'] = 1;
-
-
-                            Log::info($postData);
-                            $apiservicedata = Curl::to($apiproviderdata['url'])->withData($postData)->post();
-                            Log::info($apiservicedata);
-                            $apidata = json_decode($apiservicedata);
-                            if (isset($apidata->order)) {
-                                $order = new Order();
-                                $order->user_id = $user->id;
-                                $order->category_id = $req['category'];
-                                $order->service_id = $req['service'];
-                                $order->link = isset($req['link']) && !empty($req['link']) ? $req['link'] : '';
-                                $order->quantity = $req['quantity'];
-                                $order->status = 'processing';
-                                $order->price = $price;
-                                $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : 1;
-                                $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : 1;
-                                $order->status_description = "order: {$apidata->order}";
-                                $order->api_order_id = $apidata->order;
-
-                                $order->save();
-                                $user->balance -= $price;
-                                $user->save();
-
-                                $transaction = new Transaction();
-                                $transaction->user_id = $user->id;
-                                $transaction->trx_type = '-';
-                                $transaction->amount = $price;
-                                $transaction->remarks = 'Place order';
-                                $transaction->trx_id = strRandom();
-                                $transaction->charge = 0;
-                                $transaction->save();
-
-
-                                $msg = [
-                                    'username' => $user->username,
-                                    'price' => $price,
-                                    'currency' => $basic->currency
-                                ];
-                                $action = [
-                                    "link" => route('admin.order.edit', $order->id),
-                                    "icon" => "fas fa-cart-plus text-white"
-                                ];
-                                $this->adminPushNotification('ORDER_CREATE', $msg, $action);
-
-
-
-
-                                return response()->json(['message' => Helpers::translate('successfully created!')], 200);
-
-                            } else {
-                                return response()->json(['message' => $apidata->error], 200);
-
-                            }
-                        }
-
-
-
                     } else {
-                        return response()->json(['errors' => Helpers::error_processor($validator)], 403);
-                    }
-                } else {
-                    $api = new DhruFusion($provider->api_user, $provider->api_key, $provider->url);
-
-                    $user = Auth::user();
-                    if ($user->is_reseller) {
-                        $userRate = ($service->user_rate) ?? $service->reseller_price;
-
-                    } else {
-                        $userRate = ($service->user_rate) ?? $service->price;
-                    }
-
-                    $price = round(($quantity * $userRate), $basic->fraction_number);
-
-
-                    if ($user->balance < $price) {
-                        return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
-                    }
-
-
-                    // $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : null;
-                    // $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : null;
-
-                    $custom_fields = explode(",", $service->custom_fields);
-                    Log::info($custom_fields);
-                    $params = [];
-                    foreach ($custom_fields as $field) {
-                        if ($field != "") {
-                            // $fieldFiltered=str_replace(' ','_',$field);
-
-                            $params[$field] = $req[$field];
-                        }
-                    }
-
-                    if (isset($service->max_amount)) {
-                        if ($service->max_amount > 1) {
-                            $params['QNT'] = $req['quantity'];
-                        }
-                    }
-
-                    $params["ID"] = $service->api_service_id;
-
-                    Log::info($params);
-                    $response = $api->action('placeimeiorder', $params);
-                    Log::info($response);
-
-                    if (isset($response['SUCCESS'])) {
-                        $order = new Order();
-                        $order->user_id = $user->id;
-                        $order->category_id = $req['category'];
-                        $order->service_id = $req['service'];
-
-                        $order->quantity = $req['quantity'];
-                        $order->status = 'processing';
-                        $order->price = $price;
-                        $order->api_order_id = $response['SUCCESS'][0]['REFERENCEID'];
-                        $order->status_description = $response['SUCCESS'][0]['MESSAGE'];
-                        $order->save();
-                        $user->balance -= $price;
-                        $user->save();
-
-                        $transaction = new Transaction();
-                        $transaction->user_id = $user->id;
-                        $transaction->trx_type = '-';
-                        $transaction->amount = $price;
-                        $transaction->remarks = 'Place order';
-                        $transaction->trx_id = strRandom();
-                        $transaction->charge = 0;
-                        $transaction->save();
-
-
-                        $msg = [
-                            'username' => $user->username,
-                            'price' => $price,
-                            'currency' => $basic->currency
-                        ];
-                        $action = [
-                            "link" => route('admin.order.edit', $order->id),
-                            "icon" => "fas fa-cart-plus text-white"
-                        ];
-                        $this->adminPushNotification('ORDER_CREATE', $msg, $action);
-                        return response()->json(['message' => Helpers::translate('successfully created!')], 200);
-
-                    } else if (isset($response['ERROR'])) {
-
-
-
-                        return response()->json(['message' => Helpers::translate($response['ERROR'][0]['MESSAGE'])], 200);
-
-
-                    } else {
-                        return response()->json(['message' => Helpers::translate('Service temporarily suspended!')], 200);
-                    }
-
-
-
-
-
-                }
-            } else {
-
-
-                $user = Auth::user();
-                if ($user->is_reseller) {
-                    $userRate = ($service->user_rate) ?? $service->reseller_price;
-
-                } else {
-                    $userRate = ($service->user_rate) ?? $service->price;
-                }
-
-                $price = round(($quantity * $userRate), $basic->fraction_number);
-
-
-                if ($user->balance < $price) {
-                    return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
-                }
-
-
-                // $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : null;
-                // $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : null;
-
-                $custom_fields = explode(",", $service->custom_fields);
-                Log::info($custom_fields);
-                $params = "";
-                foreach ($custom_fields as $field) {
-                    if ($field != "") {
-                        $fieldFiltered = str_replace(' ', '_', $field);
-
-                        $params = $params . $field . ':' . $req[$fieldFiltered] . ",";
-                    }
-                }
-
-
-
-
-
-
-
-
-                $order = new Order();
-                $order->user_id = $user->id;
-                $order->category_id = $req['category'];
-                $order->service_id = $req['service'];
-
-                $order->quantity = $req['quantity'];
-                $order->status = 'processing';
-                $order->price = $price;
-                $order->reason = $params;
-                // $order->api_order_id = $response['SUCCESS'][0]['REFERENCEID'];
-                // $order->status_description = $response['SUCCESS'][0]['MESSAGE'];
-                $order->save();
-                $user->balance -= $price;
-                $user->save();
-
-                $transaction = new Transaction();
-                $transaction->user_id = $user->id;
-                $transaction->trx_type = '-';
-                $transaction->amount = $price;
-                $transaction->remarks = 'Place order';
-                $transaction->trx_id = strRandom();
-                $transaction->charge = 0;
-                $transaction->save();
-
-
-                $msg = [
-                    'username' => $user->username,
-                    'price' => $price,
-                    'currency' => $basic->currency
-                ];
-                $action = [
-                    "link" => route('admin.order.edit', $order->id),
-                    "icon" => "fas fa-cart-plus text-white"
-                ];
-                $this->adminPushNotification('ORDER_CREATE', $msg, $action);
-                return response()->json(['message' => Helpers::translate('successfully created!')], 200);
-
-
-
-            }
-        } else {
-            // LBP
-            $conversion_rate = (float) BusinessSetting::where('type', '=', 'currency_conversion_factor')->first()->value;
-            if ($provider != null) {
-                if ($provider->type == "SMM") {
-                    if ($service->min_amount <= $quantity && $service->max_amount >= $quantity) {
-                        $user = Auth::user();
-                        if ($user->is_reseller) {
-                            $userRate = ($service->user_rate) ?? $service->reseller_price;
-
-                        } else {
-                            $userRate = ($service->user_rate) ?? $service->price;
-                        }
-
-                        $price = round(($quantity * $userRate * $conversion_rate), $basic->fraction_number);
-
-
-
                         if ($user->lbalance < $price) {
                             return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
                         }
-
-
-
-                        if (isset($service->api_provider_id)) {
-                            $apiproviderdata = ApiProvider::find($service->api_provider_id);
-                            $postData = [
-                                'key' => $apiproviderdata['api_key'],
-                                'action' => 'add',
-                                'service' => $service->api_service_id,
-                                'link' => $req['link'],
-                                'quantity' => $req['quantity']
-                            ];
-
-                            if (isset($req['Zone_ID']))
-                                $postData['Zone ID'] = $req['Zone_ID'];
-                            if (isset($req['User_ID']))
-                                $postData['User ID'] = $req['User_ID'];
-
-                            $postData['runs'] = 1;
-                            $postData['interval'] = 1;
-
-
-                            Log::info($postData);
-                            $apiservicedata = Curl::to($apiproviderdata['url'])->withData($postData)->post();
-                            Log::info($apiservicedata);
-                            $apidata = json_decode($apiservicedata);
-                            if (isset($apidata->order)) {
-                                $order = new Order();
-                                $order->user_id = $user->id;
-                                $order->category_id = $req['category'];
-                                $order->service_id = $req['service'];
-
-                                $order->link = isset($req['link']) && !empty($req['link']) ? $req['link'] : '';
-                                $order->quantity = $req['quantity'];
-                                $order->status = 'processing';
-                                $order->price = $price;
-                                $order->currency = "LBP";
-                                $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : 1;
-                                $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : 1;
-                                $order->status_description = "order: {$apidata->order}";
-                                $order->api_order_id = $apidata->order;
-
-                                $order->save();
-                                $user->lbalance -= $price;
-                                $user->save();
-
-                                $transaction = new Transaction();
-                                $transaction->user_id = $user->id;
-                                $transaction->trx_type = '-';
-                                $transaction->currency = 'LBP';
-                                $transaction->amount = $price;
-                                $transaction->remarks = 'Place order';
-                                $transaction->trx_id = strRandom();
-                                $transaction->charge = 0;
-                                $transaction->save();
-
-
-                                $msg = [
-                                    'username' => $user->username,
-                                    'price' => $price,
-                                    'currency' => $basic->currency
-                                ];
-                                $action = [
-                                    "link" => route('admin.order.edit', $order->id),
-                                    "icon" => "fas fa-cart-plus text-white"
-                                ];
-                                $this->adminPushNotification('ORDER_CREATE', $msg, $action);
-
-
-
-
-                                return response()->json(['message' => Helpers::translate('successfully created!')], 200);
-                            } else {
-
-                                return response()->json(['message' => $apidata->error], 200);
-                            }
-                        }
-
-
-                    } else {
-                        return response()->json(['errors' => Helpers::error_processor($validator)], 403);
                     }
-                } else {
-                    $api = new DhruFusion($provider->api_user, $provider->api_key, $provider->url);
-
-                    $user = Auth::user();
-                    if ($user->is_reseller) {
-                        $userRate = ($service->user_rate) ?? $service->reseller_price;
-
-                    } else {
-                        $userRate = ($service->user_rate) ?? $service->price;
-                    }
-
-                    $price = round(($quantity * $userRate * $conversion_rate), $basic->fraction_number);
-
-
-                    if ($user->lbalance < $price) {
-                        return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
-                    }
-
-
+                    
+    
+    
                     // $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : null;
                     // $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : null;
-
+    
                     $custom_fields = explode(",", $service->custom_fields);
                     Log::info($custom_fields);
-                    $params = [];
+                    $params = "";
                     foreach ($custom_fields as $field) {
                         if ($field != "") {
-                            //$fieldFiltered=str_replace(' ','_',$field);
-                            $params[$field] = $req[$field];
+                            $fieldFiltered = str_replace(' ', '_', $field);
+    
+                            $params = $params . $field . ':' . $req[$fieldFiltered] . ",";
                         }
                     }
+    
+    
+    
+    
+    
+    
+    
+    
+                    $order = new Order();
+                    $order->user_id = $user->id;
+                    $order->category_id = $req['category'];
+                    $order->service_id = $req['service'];
+    
+                    $order->quantity = $req['quantity'];
+                    $order->status = 'processing';
+                    $order->price = $price;
+                    $order->currency = $req['currency'];
+                    $order->reason = $params;
+                    // $order->api_order_id = $response['SUCCESS'][0]['REFERENCEID'];
+                    // $order->status_description = $response['SUCCESS'][0]['MESSAGE'];
+                    $order->save();
+                    if ($req['currency'] == "USD") {
+                      
 
-                    if (isset($service->max_amount)) {
-                        if ($service->max_amount > 1) {
-                            $params['QNT'] = $req['quantity'];
-                        }
-                    }
-
-                    $params["ID"] = $service->api_service_id;
-
-                    Log::info($params);
-                    $response = $api->action('placeimeiorder', $params);
-                    Log::info($response);
-
-                    if (isset($response['SUCCESS'])) {
-                        $order = new Order();
-                        $order->user_id = $user->id;
-                        $order->category_id = $req['category'];
-                        $order->service_id = $req['service'];
-
-                        $order->quantity = $req['quantity'];
-                        $order->status = 'processing';
-                        $order->currency = 'LBP';
-                        $order->price = $price;
-                        $order->api_order_id = $response['SUCCESS'][0]['REFERENCEID'];
-                        $order->status_description = $response['SUCCESS'][0]['MESSAGE'];
-
-                        $order->save();
-                        $user->lbalance -= $price;
-                        $user->save();
-
-                        $transaction = new Transaction();
-                        $transaction->user_id = $user->id;
-                        $transaction->trx_type = '-';
-                        $transaction->currency = 'LBP';
-                        $transaction->amount = $price;
-                        $transaction->remarks = 'Place order';
-                        $transaction->trx_id = strRandom();
-                        $transaction->charge = 0;
-                        $transaction->save();
-
-
-                        $msg = [
-                            'username' => $user->username,
-                            'price' => $price,
-                            'currency' => $basic->currency
-                        ];
-                        $action = [
-                            "link" => route('admin.order.edit', $order->id),
-                            "icon" => "fas fa-cart-plus text-white"
-                        ];
-                        $this->adminPushNotification('ORDER_CREATE', $msg, $action);
-                        return response()->json(['message' => Helpers::translate('successfully created!')], 200);
-
-                    } else if (isset($response['ERROR'])) {
-
-                        return response()->json(['message' => Helpers::translate($response['ERROR'][0]['MESSAGE'])], 200);
-
+                        $user->balance -= $price;
                     } else {
-                        return response()->json(['message' => Helpers::translate('Service temporarily suspended!')], 200);
+                        $user->lbalance -= $price;
                     }
-
-
-
-
-
-
+                    $user->save();
+    
+                    $transaction = new Transaction();
+                    $transaction->user_id = $user->id;
+                    $transaction->trx_type = '-';
+                    $transaction->amount = $price;
+                    $transaction->currency = $req['currency'];
+                    $transaction->remarks = 'Place order';
+                    $transaction->trx_id = strRandom();
+                    $transaction->charge = 0;
+                    $transaction->save();
+    
+    
+                    $msg = [
+                        'username' => $user->username,
+                        'price' => $price,
+                        'currency' => $basic->currency
+                    ];
+                    $action = [
+                        "link" => route('admin.order.edit', $order->id),
+                        "icon" => "fas fa-cart-plus text-white"
+                    ];
+                    $this->adminPushNotification('ORDER_CREATE', $msg, $action);
+                    return response()->json(['message' => Helpers::translate('successfully created!')], 200);
+    
+    
+    
                 }
-
-            } else {
-
-
-                $user = Auth::user();
-                if ($user->is_reseller) {
-                    $userRate = ($service->user_rate) ?? $service->reseller_price;
-
-                } else {
-                    $userRate = ($service->user_rate) ?? $service->price;
-                }
-
-                $price = round(($quantity * $userRate * $conversion_rate), $basic->fraction_number);
-
-
-                if ($user->lbalance < $price) {
-                    return response()->json(['message' => Helpers::translate('Insufficient balance in your wallet.!')], 200);
-                }
-
-
-                // $order->runs = isset($req['runs']) && !empty($req['runs']) ? $req['runs'] : null;
-                // $order->interval = isset($req['interval']) && !empty($req['interval']) ? $req['interval'] : null;
-
-                $custom_fields = explode(",", $service->custom_fields);
-                Log::info($custom_fields);
-                $params = "";
-                foreach ($custom_fields as $field) {
-                    if ($field != "") {
-                        $fieldFiltered = str_replace(' ', '_', $field);
-
-                        $params = $params . $field . ':' . $req[$fieldFiltered];
-                    }
-                }
-
-
-
-
-
-
-
-
-                $order = new Order();
-                $order->user_id = $user->id;
-                $order->category_id = $req['category'];
-                $order->service_id = $req['service'];
-
-                $order->quantity = $req['quantity'];
-                $order->status = 'processing';
-                $order->price = $price;
-                $order->currency = "LBP";
-                $order->reason = $params;
-                // $order->api_order_id = $response['SUCCESS'][0]['REFERENCEID'];
-                // $order->status_description = $response['SUCCESS'][0]['MESSAGE'];
-                $order->save();
-                $user->lbalance -= $price;
-                $user->save();
-
-                $transaction = new Transaction();
-                $transaction->user_id = $user->id;
-                $transaction->trx_type = '-';
-                $transaction->currency = "LBP";
-                $transaction->amount = $price;
-                $transaction->remarks = 'Place order';
-                $transaction->trx_id = strRandom();
-                $transaction->charge = 0;
-                $transaction->save();
-
-
-                $msg = [
-                    'username' => $user->username,
-                    'price' => $price,
-                    'currency' => $basic->currency
-                ];
-                $action = [
-                    "link" => route('admin.order.edit', $order->id),
-                    "icon" => "fas fa-cart-plus text-white"
-                ];
-                $this->adminPushNotification('ORDER_CREATE', $msg, $action);
-                return response()->json(['message' => Helpers::translate('successfully created!')], 200);
-
-
-
-            }
-        }
+            
+       
 
 
 

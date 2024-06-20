@@ -7,7 +7,7 @@
             <h4 class="card-title mb-3">
                 <a href="javascript:void(0)" class="import-multiple btn btn-primary text-white float-right" data-toggle="modal"
                                        data-target="#importMultipleMoldal"
-                                       data-route="{{ route('admin.api.service.import.multi',['provider'=>$provider->id]) }}">
+                                       data-route="{{ route('admin.api.service.import.multi', ['provider' => $provider->id]) }}">
                     <span><i class="fas fa-plus text-white pr-2"></i> @lang('Add Bulk Service')</span>
                 </a>
             </h4>
@@ -29,25 +29,25 @@
                         </tr>
                     </thead>
                     <tbody>
-                    @foreach($apiServiceLists as $service)
+                    @foreach($result as $service)
                         <tr>
                             <td class="text-center check-box-width-50">
-                                <input type="checkbox" id="chk-{{@$service->service}}"
-                                       class="form-check-input row-tic tic-check row-tic-{{@$service->service}}"
-                                       name="check" value="{{ @$service->service }}"
-                                       data-id="{{ $service->service }}">
-                                <label for="chk-{{@$service->service}}"></label>
+                                <input type="checkbox" id="chk-{{@$service['id']}}"
+                                       class="form-check-input row-tic tic-check row-tic-{{@$service['id']}}"
+                                       name="check" value="{{ @$service['id'] }}"
+                                       data-id="{{ $service['id'] }}">
+                                <label for="chk-{{@$service['id']}}"></label>
                             </td>
-                            <td class="text-center">{{@$service->service}}</td>
+                            <td class="text-center">{{@$service['id']}}</td>
                             <td class="text-center">
-                                <a href="javascript:void(0)" data-container="body"  data-toggle="popover" data-placement="top" data-content="{{@$service->name}}">
-                                    {{\Str::limit(@$service->name, 60)}}
+                                <a href="javascript:void(0)" data-container="body"  data-toggle="popover" data-placement="top" data-content="{{@$service['name']}}">
+                                    {{\Str::limit(@$service['name'], 60)}}
                                 </a></td>
-                            <td class="text-center">{{ @$service->category }}</td>
-                            <td class="text-center"><span class="text-dark">{{ round(@$service->rate/$provider->rate,5) }}</span> {{$provider->currency}}</td>
+                            <td class="text-center">{{ @$service['category'] }}</td>
+                            <td class="text-center"><span class="text-dark">{{ round(@$service['rate'] / $provider->rate, 5) }}</span> {{$provider->currency}}</td>
                             <td class="text-center">
                                 <span
-                                    class="badge badge-pill {{ @$service->dripfeed == 0 ? 'badge-danger' : 'badge-success' }}">{{ @$service->dripfeed == 0 ? 'Inactive' : 'Active' }}
+                                    class="badge badge-pill {{ @$service['dripfeed'] == 0 ? 'badge-danger' : 'badge-success' }}">{{ @$service['dripfeed'] == 0 ? 'Inactive' : 'Active' }}
                                 </span>
                             </td>
                             <td class="text-center">
@@ -59,7 +59,7 @@
                                     <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
                                         <a href="javascript:void(0)" class="dropdown-item import-single" data-toggle="modal"
                                            data-target="#importMoldal"
-                                           data-route="{{ route('admin.api.service.import',['id'=>@$service->service,'name'=>@$service->name,'category'=>$service->category,'rate'=>$service->rate,'min'=>$service->min,'max'=>@$service->max,'dripfeed'=>@$service->dripfeed,'params'=>@$service->params, 'provider'=>@$provider->id]) }}">
+                                           data-route="{{ route('admin.api.service.import', ['id' => @$service['id'], 'name' => @$service['name'], 'category' => $service['category'], 'rate' => $service['rate'], 'min' => $service['min'], 'max' => @$service['max'], 'dripfeed' => @$service['dripfeed'], 'params' => @$service['params'], 'provider' => @$provider->id]) }}">
                                             <i class="fas fa-plus text-success pr-2"></i> @lang('Add Service')</a>
                                     </div>
                                 </div>
@@ -154,7 +154,7 @@
                             <label>@lang('Bulk add limit')</label>
                             <select class="form-control" name="import_quantity" id="selectedValue">
                                 <option value="selectItem" class="selectedServices">@lang('Add Selected Service')</option>
-                                @for($loop = 25; $loop <= 1000; $loop+=25)
+                                @for($loop = 25; $loop <= 1000; $loop += 25)
                                     <option value="{{ $loop }}">{{ $loop }}</option>
                                 @endfor
                                 <option value="all">All</option>

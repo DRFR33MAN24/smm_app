@@ -8,24 +8,25 @@ use App\Models\Category;
 use App\Models\Order;
 use App\Models\Service;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Ixudra\Curl\Facades\Curl;
 
-class SMMApiProvider implements ApiProviderInterface
+class ZDDKApiProvider implements ApiProviderInterface
 {
     public function getAllProviderServices(ApiProvider $apiProvider)
     {
-        $apiLiveData = Curl::to($apiProvider->url)->withData(['key' => $apiProvider->api_key, 'action' => 'services'])->post();
+        $apiLiveData = Curl::to($apiProvider->url . '/products')->withHeaders(array('api-token' => $apiProvider['api_key']))->get();
 
         $apiServiceLists = json_decode($apiLiveData);
+
 
         return $apiServiceLists;
     }
 
     public function importMulti(ApiProvider $apiProvider, array $req)
     {
-        $apiLiveData = Curl::to($apiProvider['url'])
-            ->withData(['key' => $apiProvider['api_key'], 'action' => 'services'])->post();
-        $apiServicesData = json_decode($apiLiveData);
+
+        $apiServicesData = $this->getAllProviderServices($apiProvider);
 
         $getService = [];
         if ($req['import_quantity'] == 'selectItem') {
@@ -42,29 +43,29 @@ class SMMApiProvider implements ApiProviderInterface
             $insertCat = 1;
             $existService = 0;
             foreach ($all_category as $categories) {
-                if ($categories->category_title == $apiService->category) {
+                if ($categories->category_title == $apiService->category_name) {
                     $insertCat = 0;
                 }
             }
             if ($insertCat == 1) {
                 $cat = new Category();
-                $cat->category_title = $apiService->category;
+                $cat->category_title = $apiService->category_name;
                 $cat->category_type = $req['category_type'];
                 $cat->status = 1;
                 $cat->save();
             }
             foreach ($services as $service) {
-                if ($service->api_service_id == $apiService->service) {
+                if ($service->api_service_id == $apiService->id) {
                     $existService = 1;
                 }
             }
             if ($existService != 1) {
                 $service = new Service();
-                $idCat = Category::where('category_title', $apiService->category)->first()->id ?? null;
+                $idCat = Category::where('category_title', $apiService->category_name)->first()->id ?? null;
                 $service->service_title = $apiService->name;
                 $service->category_id = $idCat;
                 // dd($apiService);
-                if (isset($apiService->min)) {
+                if (isset($apiService->qty_values)) {
                     // code...
 
                     $service->min_amount = $apiService->min;
@@ -73,7 +74,7 @@ class SMMApiProvider implements ApiProviderInterface
                     $service->min_amount = null;
                 }
 
-                if (isset($apiService->max)) {
+                if (isset($apiService->qty_values)) {
                     // code...
 
                     $service->max_amount = $apiService->max;
@@ -83,36 +84,34 @@ class SMMApiProvider implements ApiProviderInterface
                 }
 
                 if (isset($apiService->params)) {
-                    $p = json_decode($apiService->params);
+
                     $strArry = '';
-                    foreach ($p as $field) {
-                        $strArry .= $field.',';
+                    foreach ($apiService->params as $field) {
+                        $strArry .= $field . ',';
 
                     }
                     $service->custom_fields = $strArry;
-                } else {
-                    $service->custom_fields = 'link';
                 }
 
-                $apiService->rate = $apiService->rate / $apiProvider->rate;
+                $apiService->price = $apiService->price / $apiProvider->rate;
 
                 $basic = (object) config('basic');
-                $increased_price = ($apiService->rate * 10) / 100;
+                $increased_price = ($apiService->price * 10) / 100;
 
-                $increased_price = ($apiService->rate * $req['price_percentage_increase']) / 100;
+                $increased_price = ($apiService->price * $req['price_percentage_increase']) / 100;
 
-                $service->price = round(($apiService->rate + $increased_price) * $apiProvider->convention_rate, $basic->fraction_number);
+                $service->price = round(($apiService->price + $increased_price) * $apiProvider->convention_rate, $basic->fraction_number);
 
-                $reseller_increased_price = ($apiService->rate * $req['reseller_price_percentage_increase']) / 100;
+                $reseller_increased_price = ($apiService->price * $req['reseller_price_percentage_increase']) / 100;
 
-                $service->reseller_price = round(($apiService->rate + $reseller_increased_price) * $apiProvider->convention_rate, $basic->fraction_number);
+                $service->reseller_price = round(($apiService->price + $reseller_increased_price) * $apiProvider->convention_rate, $basic->fraction_number);
                 //                $service->price = $apiService->rate;
 
                 $service->service_status = 1;
                 $service->api_provider_id = $req['provider'];
-                $service->api_service_id = $apiService->service;
+                $service->api_service_id = $apiService->id;
                 // $service->drip_feed = @$apiService->dripfeed;
-                $service->api_provider_price = round($apiService->rate, $basic->fraction_number);
+                $service->api_provider_price = round($apiService->price, $basic->fraction_number);
 
                 // if(isset($apiService->refill)){
                 //     $service->refill = $apiService->refill;
@@ -139,8 +138,8 @@ class SMMApiProvider implements ApiProviderInterface
 
     public function updateProviderServicesPrices(ApiProvider $apiProvider)
     {
-        $apiLiveData = Curl::to($apiProvider->url)->withData(['key' => $apiProvider->api_key, 'action' => 'services'])->post();
-        $currencyData = json_decode($apiLiveData);
+
+        $currencyData = $this->getAllProviderServices($apiProvider);
         foreach ($apiProvider->services as $k => $data) {
             if (isset($data->price)) {
                 $data->update([
@@ -153,13 +152,13 @@ class SMMApiProvider implements ApiProviderInterface
 
     public function updateProviderBalance(ApiProvider $apiProvider)
     {
-        $apiLiveData = Curl::to($apiProvider->url)->withData(['key' => $apiProvider->api_key, 'action' => 'balance'])->post();
+        $apiLiveData = Curl::to($apiProvider->url . '/profile')->withHeaders(array('api-token' => $apiProvider['api_key']))->get();
         $currencyData = json_decode($apiLiveData);
 
         $result = [];
         if (isset($currencyData->balance)) {
             $apiProvider->balance = $currencyData->balance;
-            $apiProvider->currency = $currencyData->currency;
+            $apiProvider->currency = "USD";
 
             $apiProvider->save();
 
@@ -176,18 +175,22 @@ class SMMApiProvider implements ApiProviderInterface
 
     public function getOrderStatus(ApiProvider $apiProvider, Order $order)
     {
-        $apiservicedata = Curl::to($apiProvider['url'])->withData(['key' => $apiProvider['api_key'], 'action' => 'status', 'order' => $order->api_order_id])->post();
+        $apiservicedata = Curl::to($apiProvider['url'] . '/check')
+            ->withHeaders(array('api-token' => $apiProvider['api_key']))
+            ->withData(
+                ['orders' => '[' . $order->api_order_id . ']']
+            )
+            ->get();
 
         $apidata = json_decode($apiservicedata);
         if (isset($apidata->status)) {
-            $order->status = (strtolower($apidata->status) == 'in progress') ? 'progress' : strtolower($apidata->status);
-            $order->start_counter = @$apidata->start_count;
-            $order->remains = @$apidata->remains;
+            $order->status = (strtolower($apidata->data[0]->status) == 'wait') ? 'progress' : strtolower($apidata->data[0]->status);
+
             $order->reason = @$apidata->reason;
         }
 
         if (isset($apidata->error)) {
-            $order->status_description = 'error: {'.@$apidata->error.'}';
+            $order->status_description = 'error: {' . @$apidata->error . '}';
         }
         $order->save();
     }
@@ -197,25 +200,24 @@ class SMMApiProvider implements ApiProviderInterface
 
         $result = [];
         $postData = [
-            'key' => $apiProvider['api_key'],
-            'action' => 'add',
-            'service' => $detials['service_id'],
-            'link' => isset($detials['link']) && ! empty($detials['link']) ? $detials['link'] : '',
-            'quantity' => $detials['quantity'],
+
+
+
+            'qty' => $detials['quantity'],
+            'order_uuid' => Str::uuid()->toString()
         ];
 
-        if (isset($detials['Zone_ID'])) {
-            $postData['Zone ID'] = $detials['Zone_ID'];
-        }
-        if (isset($detials['User_ID'])) {
-            $postData['User ID'] = $detials['User_ID'];
-        }
+        $postData = array_merge($postData, $detials['params']);
 
-        $postData['runs'] = 1;
-        $postData['interval'] = 1;
+
+
+
 
         Log::info($postData);
-        $apiservicedata = Curl::to($apiProvider['url'])->withData($postData)->post();
+        $apiservicedata = Curl::to($apiProvider['url'] . '/newOrder/' . $$detials['service_id'] . '/params')->
+            withHeaders(array('api-token' => $apiProvider['api_key']))->
+            withData($postData)->get();
+
         Log::info($apiservicedata);
         $apidata = json_decode($apiservicedata);
 
@@ -233,8 +235,8 @@ class SMMApiProvider implements ApiProviderInterface
     public function updateServicePrice(ApiProvider $apiProvider, string $serviceId)
     {
         $result = [];
-        $apiLiveData = Curl::to($apiProvider['url'])->withData(['key' => $apiProvider['api_key'], 'action' => 'services'])->post();
-        $apiServiceData = json_decode($apiLiveData);
+
+        $apiServiceData = $this->getAllProviderServices();
         foreach ($apiServiceData as $current) {
             if ($current->service == $serviceId) {
                 $success = 'Successfully Update Api service';
@@ -244,7 +246,7 @@ class SMMApiProvider implements ApiProviderInterface
                 break;
             }
         }
-        if (! isset($success)) {
+        if (!isset($success)) {
             $result['error'] = 'Error';
 
             return $result;
@@ -256,13 +258,13 @@ class SMMApiProvider implements ApiProviderInterface
         $result = [];
         foreach ($apiResponse as $key => $service) {
             $normalizedService = [
-                'id' => $service->service,
+                'id' => $service->id,
                 'name' => $service->name,
-                'category' => $service->category,
-                'rate' => $service->rate,
-                'dripfeed' => $service->dripfeed,
-                'min' => $service->min,
-                'max' => $service->max,
+                'category' => $service->category_name,
+                'rate' => $service->price,
+                'dripfeed' => null,
+                'min' => $service->min ?? 1,
+                'max' => $service->max ?? 1,
                 'params' => $service->params,
             ];
             array_push($result, $normalizedService);

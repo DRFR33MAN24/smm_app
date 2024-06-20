@@ -14,10 +14,18 @@ use App\Rules\FileTypeValidate;
 use App\Http\Traits\Upload;
 use Illuminate\Support\Facades\Log;
 use App\Helper\DhruFusion;
+use App\Services\ApiProviderFactory;
 
 class ServiceController extends Controller
 { 
     use Upload;
+
+    protected $apiProviderFactory;
+
+    public function __construct(ApiProviderFactory $apiProviderFactory)
+    {
+        $this->apiProviderFactory = $apiProviderFactory;
+    }
     /**
      * Display a listing of the resource.
      *
@@ -135,37 +143,18 @@ class ServiceController extends Controller
         $provider = ApiProvider::find($req['api_provider_id']);
 
         if ($req['manual_api'] == 1):
-            if ($provider->type=="SMM") {
-             
-                $apiLiveData = Curl::to($provider['url'])->withData(['key' => $provider['api_key'], 'action' => 'services'])->post();
-                $apiServiceData = json_decode($apiLiveData);
-                foreach ($apiServiceData as $current):
-                    if ($current->service == $req['api_service_id']):
-                        $success = "Successfully Update Api service";
-                        $service->api_provider_price = $current->rate /$provider->rate;
-                        break;
-                    endif;
-                endforeach;
-                if (!isset($success)):
-                    return back()->with('error', 'Please Check again Api Service ID')->withInput();
-                endif;
-            } else {
-                $api = new DhruFusion($provider->api_user,$provider->api_key,$provider->url);
-                $para['ID'] = $req['api_service_id']; 
-                         if($provider->api_name == "Halab"){
-          $file= file_get_contents(public_path('res.txt'));
-          $res = json_decode($file,true);
-           // dd($response);
-          $service->api_provider_price= $res["SUCCESS"][0]["LIST"]['credit'];
-               
-           }
-           else{
-               
-                $response = $api->action('getimeiservicedetails', $para);
-                $service->api_provider_price= $response["SUCCESS"][0]["LIST"]['credit'];
-           }
-               
+            $providerInstance = $this->apiProviderFactory->createProvider($provider->type);
+            $result = $providerInstance->updateServicePrice($provider,$req['api_service_id']);
+            if (isset($result['error'])) {
+                return back()->with('success', $result['error']);
             }
+            else{
+                $service->api_provider_price= $result['rate'];
+            }
+ 
+
+               
+            
             
         else:
             $success = "Successfully Updated";
@@ -268,38 +257,18 @@ class ServiceController extends Controller
         $provider = ApiProvider::find($req['api_provider_id']);
 
         if ($req['manual_api'] == 1):
-            if ($provider->type=="SMM") {
-                # code...
-                $apiLiveData = Curl::to($provider['url'])->withData(['key' => $provider['api_key'], 'action' => 'services'])->post();
-                $apiServiceData = json_decode($apiLiveData);
-                foreach ($apiServiceData as $current):
-                    if ($current->service == $req['api_service_id']):
-                        $success = "Successfully Update Api service";
-                        $service->api_provider_price = $current->rate /$provider->rate;
-                        break;
-                    endif;
-                endforeach;
-                if (!isset($success)):
-                    return back()->with('error', 'Please Check again Api Service ID')->withInput();
-                endif;
-            } else {
-                $api = new DhruFusion($provider->api_user,$provider->api_key,$provider->url);
-                $para['ID'] = $req['api_service_id'];
-                                    if($provider->api_name == "Halab"){
-          $file= file_get_contents(public_path('res.txt'));
-          $res = json_decode($file,true);
-            
-         // $service->api_provider_price= $res["SUCCESS"][0]["LIST"]['credit'];
-               
-           }
-           else{
-               
-                $response = $api->action('getimeiservicedetails', $para);
-              //  $service->api_provider_price= $response["SUCCESS"][0]["LIST"]['credit'];
-           }
 
-                 $success = "Successfully Update Api service";
+            $providerInstance = $this->apiProviderFactory->createProvider($provider->type);
+            $result = $providerInstance->updateServicePrice($provider,$req['api_service_id']);
+            if (isset($result['error'])) {
+                return back()->with('error', $result['error']);
             }
+            else{
+                $service->api_provider_price= $result['rate'];
+            }
+
+
+       
             
         else:
             $success = "Successfully Updated";

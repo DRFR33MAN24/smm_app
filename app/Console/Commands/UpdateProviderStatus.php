@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Ixudra\Curl\Facades\Curl;
 use Illuminate\Console\Command;
 use App\Helper\DhruFusion;
+use App\Services\ApiProviderFactory;
 use Illuminate\Support\Facades\Log;
 
 class UpdateProviderStatus extends Command
@@ -26,15 +27,16 @@ class UpdateProviderStatus extends Command
      * @var string
      */
     protected $description = 'Update Provider Status for Order';
-
+    protected $apiProviderFactory;
     /**
      * Create a new command instance.
      *
      * @return void
      */
-    public function __construct()
+    public function __construct(ApiProviderFactory $apiProviderFactory)
     {
         parent::__construct();
+        $this->apiProviderFactory = $apiProviderFactory;
     }
 
     /**
@@ -56,21 +58,12 @@ class UpdateProviderStatus extends Command
             $service = $order->service;
             if (isset($service->api_provider_id)) {
                 $apiproviderdata = $service->provider;
-                if ($apiproviderdata->type=="SMM") {
-                    $apiservicedata = Curl::to($apiproviderdata['url'])->withData(['key' => $apiproviderdata['api_key'], 'action' => 'status', 'order' => $order->api_order_id])->post();
-        Log::info($apiservicedata);
-                    $apidata = json_decode($apiservicedata);
-                    if (isset($apidata->status)) {
-                        $order->status = (strtolower($apidata->status) == 'in progress') ? 'progress' : strtolower($apidata->status);
-                        $order->start_counter = @$apidata->start_count;
-                        $order->remains = @$apidata->remains;
-                        $order->reason = @$apidata->reason;
-                    }
-    
-                    if (isset($apidata->error)) {
-                        $order->status_description = "error: {" . @$apidata->error . "}";
-                    }
-                    $order->save();
+
+                $providerInstance = $this->apiProviderFactory->createProvider($apiproviderdata->type);
+                $result = $providerInstance->getOrderStatus($apiproviderdata,$order);
+
+                
+
     
     
                     if ($order->status == 'refunded' && $order->remains != 0) {
@@ -109,86 +102,12 @@ class UpdateProviderStatus extends Command
                         $transaction->save();
     
                     }
-                } else {
-                    $api = new DhruFusion($apiproviderdata->api_user,$apiproviderdata->api_key,$apiproviderdata->url);
-                    $para["ID"]=$order->api_order_id;
-                    $response = $api->action('getimeiorder', $para);
-                     Log::info($response);
-                     
-                  
-
-                    if (isset($response['SUCCESS'])) {
-                        switch ($response['SUCCESS'][0]['STATUS']) {
-                                                        case 0:
-                                # code...
-                                $order->status = 'processing';
-                                break;
-                            case 1:
-                                # code...
-                                $order->status = 'processing';
-                                break;
-                                case 4:
-                                    # code...
-                                    $order->status = 'completed';
-                                    $order->reason = $response['SUCCESS'][0]['CODE'];
-                                    break;
-                                    case 3:
-                                        # code...
-                                        $order->status = 'refunded';
-                                        break;
-  
-                            
-                            default:
-                            $order->status = 'progress';
-                                break;
-                        }
+              
+       
+    
+    
+                 
                 
-                    }
-    
-                    else  {
-                        $order->status_description = $response['ERROR'][0]['MESSAGE'];
-                         $order->reason = $response['ERROR'][0]['MESSAGE'];
-                    }
-                    $order->save();
-    
-    
-                    if ($order->status == 'refunded' ) {
-                        $perOrder = $order->price / $order->quantity;
-                        $getBackAmo = $order->remains * $perOrder;
-    
-                        $user = $order->user;
-                        $user->balance += $getBackAmo;
-                        $user->save();
-    
-                        $transaction = new Transaction();
-                        $transaction->user_id = $user->id;
-                        $transaction->trx_type = '+';
-                        $transaction->amount = $getBackAmo;
-                        $transaction->remarks = 'Refunded order on #'.$order->id;
-                        $transaction->trx_id = strRandom();
-                        $transaction->charge = 0;
-                        $transaction->save();
-    
-                    }
-    
-                    if ($order->status == 'canceled') {
-                        $getBackAmo = $order->price;
-    
-                        $user = $order->user;
-                        $user->balance += $getBackAmo;
-                        $user->save();
-    
-                        $transaction = new Transaction();
-                        $transaction->user_id = $user->id;
-                        $transaction->trx_type = '+';
-                        $transaction->amount = $getBackAmo;
-                        $transaction->remarks = 'Canceled order on #'.$order->id;
-                        $transaction->trx_id = strRandom();
-                        $transaction->charge = 0;
-                        $transaction->save();
-    
-                    }
-                }
                 
       
 

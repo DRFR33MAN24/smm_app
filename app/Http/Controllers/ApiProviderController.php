@@ -64,28 +64,22 @@ class ApiProviderController extends Controller
         $ApiProvider->api_name = $apiProviderData['api_name'];
         $ApiProvider->api_key = $apiProviderData['api_key'];
         $ApiProvider->url = $apiProviderData['url'];
-        $apiLiveData = Curl::to($apiProviderData['url'])->withData(['key' => $apiProviderData['api_key'], 'action' => 'balance'])->post();
-        $currencyData = json_decode($apiLiveData);
-//        dd($currencyData);
-        if (isset($currencyData->balance)):
-            $ApiProvider->balance = $currencyData->balance;
-            $ApiProvider->currency = $currencyData->currency;
-        elseif (isset($currencyData->error)):
-            $error = $currencyData->error;
-        else:
-            $error = "Please Check your API URL Or API Key";
-        endif;
+
         $ApiProvider->convention_rate = $apiProviderData['convention_rate'];
         $ApiProvider->rate = $request['rate'];
 
         $ApiProvider->status = $apiProviderData['status'];
         $ApiProvider->type = $apiProviderData['type'];
         $ApiProvider->description = $apiProviderData['description'];
-        $ApiProvider->api_user=$request['api_user'];
+        $ApiProvider->api_user = $request['api_user'];
+
+
         if (isset($error)):
             return back()->with('error', $error)->withInput();
         endif;
         $ApiProvider->save();
+        $providerInstance = $this->apiProviderFactory->createProvider($ApiProvider->type);
+        $result = $providerInstance->updateProviderBalance($ApiProvider);
         return back()->with('success', 'Successfully Added');
     }
 
@@ -149,7 +143,7 @@ class ApiProviderController extends Controller
         $providerInstance = $this->apiProviderFactory->createProvider($provider->type);
         $result = $providerInstance->updateProviderBalance($provider);
 
-       
+
         $provider->api_name = $request['api_name'];
 
 
@@ -163,9 +157,9 @@ class ApiProviderController extends Controller
         endif;
         $provider->save();
         return back()->with('success', 'successfully updated');
-      
-    
-}
+
+
+    }
 
     /**
      * Remove the specified resource from storage.
@@ -175,7 +169,8 @@ class ApiProviderController extends Controller
     public function destroy(ApiProvider $apiProvider)
     {
         $apiProvider->delete();
-        return back()->with('success', 'Successfully Deleted');;
+        return back()->with('success', 'Successfully Deleted');
+        ;
     }
 
     /*
@@ -219,7 +214,7 @@ class ApiProviderController extends Controller
 
         //check result for errors
         return back()->with('success', 'Successfully updated');
-        
+
     }
 
     public function balanceUpdate($id)
@@ -227,7 +222,7 @@ class ApiProviderController extends Controller
         $provider = ApiProvider::findOrFail($id);
         $providerInstance = $this->apiProviderFactory->createProvider($provider->type);
         $result = $providerInstance->updateProviderBalance($provider);
- 
+
         return back()->with('success', 'Successfully updated');
     }
 
@@ -244,20 +239,14 @@ class ApiProviderController extends Controller
         $provider = ApiProvider::find($request->api_provider_id);
         $providerInstance = $this->apiProviderFactory->createProvider($provider->type);
         $result = $providerInstance->getAllProviderServices($provider);
-        if ($provider->type=="SMM") {
-           
 
-           
-            return view('admin.pages.services.show-api-services', compact('result', 'provider'));
-        } else if($provider->type=="DHRU")
-         {
- 
-            return view('admin.pages.services.show-api-services-dhru', compact('result', 'provider'));
-        }
-        
+        $result = $providerInstance->reMapServiceArrayKeys($result);
+        return view('admin.pages.services.show-api-services', compact('result', 'provider'));
 
 
-     
+
+
+
     }
 
     public function import(Request $request)
@@ -292,7 +281,7 @@ class ApiProviderController extends Controller
             $service->category_id = $idCat;
             if (isset($req['min'])) {
                 # code...
-            
+
                 $service->min_amount = $req['min'];
             } else {
                 # code...
@@ -301,70 +290,70 @@ class ApiProviderController extends Controller
 
             if (isset($req['max'])) {
                 # code...
-             
+
                 $service->max_amount = $req['max'];
             } else {
                 # code...
                 $service->max_amount = null;
             }
 
-            if ($provider->type !="SMM") {
+            if ($provider->type != "SMM") {
                 # code...
-                if (isset($req["custom_fields"])) {
-                   
-                    if (($req["custom_fields"]=="IMEI")) {
+                if (isset($req["params"])) {
+
+                    if (($req["params"] == "IMEI")) {
                         $service->custom_fields = 'IMEI';
                     } else {
-                    
-                        $strArry ="";
-                        foreach($req["custom_fields"] as $field){
+
+                        $strArry = "";
+                        foreach ($req["params"] as $field) {
                             if (isset($field['fieldname'])) {
                                 # code...
-                                $strArry.= $field['fieldname'].',';
-                            } 
-                           
+                                $strArry .= $field['fieldname'] . ',';
+                            }
+
                         }
                         $service->custom_fields = $strArry;
                     }
-                    
-                    
+
+
                 }
-            } else {
+            } else if ($provider->type != "DHRU") {
                 if (isset($req["params"])) {
                     $p = json_decode($req['params']);
-                    $strArry ="";
-                    foreach($p as $field){
-                        $strArry.= $field.',';
-                       
+                    $strArry = "";
+                    foreach ($p as $field) {
+                        $strArry .= $field . ',';
+
                     }
                     $service->custom_fields = $strArry;
-                }
-                else{
+                } else {
                     $service->custom_fields = "link";
                 }
             }
-            
 
 
-           
-            $req['rate'] = $req['rate'] /$provider->rate;
-            
-            $basic = (object)config('basic');
+
+
+            $req['rate'] = $req['rate'] / $provider->rate;
+
+            $basic = (object) config('basic');
             $increased_price = ($req['rate'] * $req['price_percentage_increase']) / 100;
-            $service->price = round(($req['rate'] + $increased_price) * $provider->convention_rate,$basic->fraction_number);
+            $service->price = round(($req['rate'] + $increased_price) * $provider->convention_rate, $basic->fraction_number);
 
             $reseller_increased_price = ($req['rate'] * $req['reseller_price_percentage_increase']) / 100;
-            $service->reseller_price = round(($req['rate'] + $reseller_increased_price) * $provider->convention_rate,$basic->fraction_number);
+            $service->reseller_price = round(($req['rate'] + $reseller_increased_price) * $provider->convention_rate, $basic->fraction_number);
             $service->service_status = 1;
             $service->api_provider_id = $req['provider'];
             $service->api_service_id = @$req['id'];
-           // $service->drip_feed = @$req['dripfeed'];
-            $service->api_provider_price = round(@$req['rate'],$basic->fraction_number);
+            // $service->drip_feed = @$req['dripfeed'];
+            $service->api_provider_price = round(@$req['rate'], $basic->fraction_number);
             // if(isset($req['refill'])){
             //     $service->refill = @$req['refill'];
             // }
             $service->save();
-            return redirect()->route('admin.service.show')->with('success', 'Service Imported Successfully');;
+            return redirect()->route('admin.service.show')->with('success', 'Service Imported Successfully');
+            ;
         else:
             return redirect()->route('admin.service.show')->with('success', 'Already Have this service');
         endif;
@@ -374,16 +363,16 @@ class ApiProviderController extends Controller
 
     public function importMulti(Request $request)
     {
-     
-        
+
+
         $req = $request->all();
         $provider = ApiProvider::find($req['provider']);
-        
+
         $providerInstance = $this->apiProviderFactory->createProvider($provider->type);
-        $result = $providerInstance->importMulti($provider,$req);
-        
-      
-           
+        $result = $providerInstance->importMulti($provider, $req);
+
+
+
 
 
         return redirect()->route('admin.service.show')->with('success', 'Services Imported Successfully');

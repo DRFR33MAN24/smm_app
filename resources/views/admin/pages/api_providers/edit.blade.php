@@ -113,6 +113,7 @@
                                    
                                             <option value="SMM"  @if($provider->type == "SMM" ) selected @endif>SMM</option>
                                     <option value="DHRU" @if($provider->type == "DHRU" ) selected @endif>DHRU</option>
+                                    <option value="ZDDK" @if($provider->type == "ZDDK" ) selected @endif>ZDDK</option>
                             </select>
                             @if($errors->has('type'))
                                 <div class="error text-danger mt-2">@lang($errors->first('type')) </div>
