@@ -20,7 +20,7 @@ class ConfigController extends Controller
         foreach (Helpers::get_business_settings('social_login') as $social) {
             $config = [
                 'login_medium' => $social['login_medium'],
-                'status' => (boolean)$social['status']
+                'status' => (boolean) $social['status']
             ];
             array_push($social_login, $config);
         }
@@ -59,27 +59,29 @@ class ConfigController extends Controller
             'about_us' => Helpers::get_business_settings('about_us'),
             'privacy_policy' => Helpers::get_business_settings('privacy_policy'),
             'company_email' => Helpers::get_business_settings('company_email'),
-            'company_phone' => (string)Helpers::get_business_settings('company_phone'),
-            'company_phone2' => (string)Helpers::get_business_settings('company_phone2'),
+            'company_phone' => (string) Helpers::get_business_settings('company_phone'),
+            'company_phone2' => (string) Helpers::get_business_settings('company_phone2'),
             'usdt_wallet' => Helpers::get_business_settings('usdt_wallet'),
+            'credit_transfer_percent' => (string) Helpers::get_business_settings('credit_transfer_percent'),
+            'ticker_text' => Helpers::get_business_settings('ticker_text'),
 
             'terms_and_conditions' => Helpers::get_business_settings('terms_and_conditions'),
             'refund_policy' => Helpers::get_business_settings('refund-policy'),
             'return_policy' => Helpers::get_business_settings('return-policy'),
             'cancellation_policy' => Helpers::get_business_settings('cancellation-policy'),
             'currency_conversion_factor' => Helpers::get_business_settings('currency_conversion_factor'),
-            'maintenance_mode' => (boolean)Helpers::get_business_settings('maintenance_mode') ?? 0,
+            'maintenance_mode' => (boolean) Helpers::get_business_settings('maintenance_mode') ?? 0,
             'language' => $lang_array,
-          
-            'email_verification' => (boolean)Helpers::get_business_settings('email_verification'),
-            'phone_verification' => (boolean)Helpers::get_business_settings('phone_verification'),
+
+            'email_verification' => (boolean) Helpers::get_business_settings('email_verification'),
+            'phone_verification' => (boolean) Helpers::get_business_settings('phone_verification'),
             'country_code' => Helpers::get_business_settings('country_code'),
             'social_login' => $social_login,
             'currency_model' => Helpers::get_business_settings('currency_model'),
             'forgot_password_verification' => Helpers::get_business_settings('forgot_password_verification'),
-            'announcement'=> Helpers::get_business_settings('announcement'),
-            'pixel_analytics'=> Helpers::get_business_settings('pixel_analytics'),
-            'software_version'=>env('SOFTWARE_VERSION'),
+            'announcement' => Helpers::get_business_settings('announcement'),
+            'pixel_analytics' => Helpers::get_business_settings('pixel_analytics'),
+            'software_version' => env('SOFTWARE_VERSION'),
             'payment_methods' => $payment,
         ]);
     }

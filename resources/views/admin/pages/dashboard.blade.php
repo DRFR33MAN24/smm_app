@@ -460,7 +460,7 @@
                                                 </a>
                                                 <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
                                                     <a class="dropdown-item"
-                                                       href="{{route('admin.service.edit',['id'=>$sale->service->id])}}">
+                                                       href="{{route('admin.service.edit', ['id' => $sale->service->id])}}">
                                                         <i class="fa fa-edit text-warning pr-2"
                                                            aria-hidden="true"></i> @lang('Edit')</a>
 
@@ -607,31 +607,31 @@
                                                 </a>
                                                 <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
                                                     <a class="dropdown-item"
-                                                       href="{{ route('admin.user-edit',$user->id) }}">
+                                                       href="{{ route('admin.user-edit', $user->id) }}">
                                                         <i class="fa fa-edit text-warning pr-2"
                                                            aria-hidden="true"></i> @lang('Edit')
                                                     </a>
                                                     <a class="dropdown-item"
-                                                       href="{{ route('admin.user.customRate',$user->id) }}">
+                                                       href="{{ route('admin.user.customRate', $user->id) }}">
                                                         <i class="fa fa-money-bill-alt text-dark pr-2"
                                                            aria-hidden="true"></i> @lang('Custom Rate')
                                                     </a>
 
                                                     <a class="dropdown-item"
-                                                       href="{{ route('admin.user-order',$user->id) }}">
+                                                       href="{{ route('admin.user-order', $user->id) }}">
                                                         <i class="fa fa-eye text-info pr-2"
                                                            aria-hidden="true"></i> @lang('Order')
                                                     </a>
                                                     <a class="dropdown-item loginAccount" href="javascript:void(0)"
                                                        data-toggle="modal"
                                                        data-target="#signIn"
-                                                       data-route="{{route('admin.user-loginAccount',$user->id)}}">
+                                                       data-route="{{route('admin.user-loginAccount', $user->id)}}">
                                                         <i class="fa fa-sign-in-alt text-primary pr-2"
                                                            aria-hidden="true"></i> @lang('Login as User')
                                                     </a>
 
                                                     <a class="dropdown-item"
-                                                       href="{{ route('admin.send-email',$user->id) }}">
+                                                       href="{{ route('admin.send-email', $user->id) }}">
                                                         <i class="fa fa-envelope text-success pr-2"
                                                            aria-hidden="true"></i> @lang('Send Email')
                                                     </a>

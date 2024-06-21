@@ -1,4 +1,4 @@
-<?php return array (
+<?php return array(
   'site_title' => 'GiftMe',
   'time_zone' => 'UTC',
   'base_color' => '#ff8503',
@@ -14,16 +14,16 @@
   'sms_notification' => 0,
   'sender_email' => 'support@domain.com',
   'sender_email_name' => 'Bug Finder',
-  'email_configuration' => 
-  array (
-    'name' => 'smtp',
-    'smtp_host' => 'domain.com',
-    'smtp_port' => '465',
-    'smtp_encryption' => 'ssl',
-    'smtp_username' => 'support@domain.com',
-    'smtp_password' => '9c09270f5448ad',
-  ),
-  'push_notification' => 0,
+  'email_configuration' =>
+    array(
+      'name' => 'smtp',
+      'smtp_host' => 'domain.com',
+      'smtp_port' => '465',
+      'smtp_encryption' => 'ssl',
+      'smtp_username' => 'support@domain.com',
+      'smtp_password' => '9c09270f5448ad',
+    ),
+  'push_notification' => 1,
   'deposit_commission' => 1,
   'is_active_cron_notification' => 1,
   'error_log' => 1,

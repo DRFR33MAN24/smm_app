@@ -70,6 +70,29 @@
                         @enderror
 
                     </div>
+
+                    <div class="form-group col-md-6">
+                        <label class="font-weight-bold">@lang('Credit Transfer Percent')</label>
+                        <input type="text" name="credit_transfer_percent"
+                               value="{{ old('credit_transfer_percent') ?? $settings['credit_transfer_percent'] ?? 'Credit Transfer Percent' }}"
+                               class="form-control ">
+
+                        @error('credit_transfer_percent')
+                        <span class="text-danger">{{ $message }}</span>
+                        @enderror
+
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label class="font-weight-bold">@lang('Ticker Text')</label>
+                        <input type="text" name="ticker_text"
+                               value="{{ old('ticker_text') ?? $settings['ticker_text'] ?? 'Ticker Text' }}"
+                               class="form-control ">
+
+                        @error('ticker_text')
+                        <span class="text-danger">{{ $message }}</span>
+                        @enderror
+
+                    </div>
                     <div class="form-group col-md-6">
                         <label class="font-weight-bold">@lang('FCM key')</label>
                         <input type="text" name="push_notification_key"
@@ -86,7 +109,7 @@
                                     <div class="custom-switch-btn">
                                         <input type='hidden' value='1' name='ment'>
                                         <input type="checkbox" name="ment" class="custom-switch-checkbox"
-                                               id="ment" value= "0" {{ $settings['maintenance_mode'] == '0' ? 'checked': '' }}>
+                                               id="ment" value= "0" {{ $settings['maintenance_mode'] == '0' ? 'checked' : '' }}>
                                         <label class="custom-switch-checkbox-label" for="ment">
                                             <span class="custom-switch-checkbox-inner"></span>
                                             <span class="custom-switch-checkbox-switch"></span>

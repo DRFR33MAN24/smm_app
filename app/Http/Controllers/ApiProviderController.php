@@ -252,6 +252,7 @@ class ApiProviderController extends Controller
     public function import(Request $request)
     {
         $req = $request->all();
+
         $provider = ApiProvider::find($req['provider']);
         $all_category = Category::all();
         $services = Service::all();
@@ -297,7 +298,7 @@ class ApiProviderController extends Controller
                 $service->max_amount = null;
             }
 
-            if ($provider->type != "SMM") {
+            if ($provider->type == "DHRU") {
                 # code...
                 if (isset($req["params"])) {
 
@@ -318,7 +319,7 @@ class ApiProviderController extends Controller
 
 
                 }
-            } else if ($provider->type != "DHRU") {
+            } else if ($provider->type == "SMM") {
                 if (isset($req["params"])) {
                     $p = json_decode($req['params']);
                     $strArry = "";
@@ -329,6 +330,16 @@ class ApiProviderController extends Controller
                     $service->custom_fields = $strArry;
                 } else {
                     $service->custom_fields = "link";
+                }
+            } else {
+                if (isset($req["params"])) {
+
+                    $strArry = "";
+                    foreach ($req['params'] as $field) {
+                        $strArry .= $field . ',';
+
+                    }
+                    $service->custom_fields = $strArry;
                 }
             }
 

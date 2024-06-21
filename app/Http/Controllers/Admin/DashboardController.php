@@ -50,17 +50,19 @@ class DashboardController extends Controller
             ->get()->makeHidden(['fullname', 'mobile'])->toArray();
 
         $data['userRecord'] = collect($users)->collapse();
-        
-                $transactionsLBP = Transaction::selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND currency="LBP" AND created_at >=' . $last30 . ' THEN charge WHEN remarks LIKE "Place order%" AND currency="LBP" AND created_at >=' . $last30 . ' THEN amount END)) AS profit_30_days')
-            ->selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND currency="LBP" AND created_at >= CURDATE() THEN charge WHEN remarks LIKE "Place order%" AND currency="LBP" AND created_at >= CURDATE() THEN amount END)) AS profit_today')
-            ->get()->toArray();
-        $data['transactionProfitLBP'] = collect($transactionsLBP)->collapse();;
 
-
-        $transactions = Transaction::selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND created_at >=' . $last30 . ' THEN charge WHEN remarks LIKE "Place order%" AND created_at >=' . $last30 . ' THEN amount END)) AS profit_30_days')
+        $transactionsLBP = Transaction::where('currency', 'LBP')->selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND created_at >=' . $last30 . ' THEN charge WHEN remarks LIKE "Place order%" AND created_at >=' . $last30 . ' THEN amount END)) AS profit_30_days')
             ->selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND created_at >= CURDATE() THEN charge WHEN remarks LIKE "Place order%" AND created_at >= CURDATE() THEN amount END)) AS profit_today')
             ->get()->toArray();
-        $data['transactionProfit'] = collect($transactions)->collapse();;
+        $data['transactionProfitLBP'] = collect($transactionsLBP)->collapse();
+        ;
+
+
+        $transactions = Transaction::where('currency', 'USD')->selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND created_at >=' . $last30 . ' THEN charge WHEN remarks LIKE "Place order%" AND created_at >=' . $last30 . ' THEN amount END)) AS profit_30_days')
+            ->selectRaw('SUM((CASE WHEN remarks LIKE "DEPOSIT Via%" AND created_at >= CURDATE() THEN charge WHEN remarks LIKE "Place order%" AND created_at >= CURDATE() THEN amount END)) AS profit_today')
+            ->get()->toArray();
+        $data['transactionProfit'] = collect($transactions)->collapse();
+        ;
 
 
         $tickets = Ticket::where('created_at', '>', Carbon::now()->subDays(30))
@@ -99,12 +101,12 @@ class DashboardController extends Controller
                     ],
                     'percent' => [
                         'complete' => ($value->completed) ? round(($value->completed / $value->totalOrder) * 100, 2) : 0,
-                        'processing' => ($value->processing) ? round(($value->processing / $value->totalOrder) * 100, 2): 0,
-                        'pending' => ($value->pending) ? round(($value->pending / $value->totalOrder) * 100, 2): 0,
-                        'inProgress' => ($value->inProgress) ? round(($value->inProgress / $value->totalOrder) * 100, 2): 0,
-                        'partial' => ($value->partial) ? round(($value->partial / $value->totalOrder) * 100, 2): 0,
-                        'canceled' => ($value->canceled) ? round(($value->canceled / $value->totalOrder) * 100, 2): 0,
-                        'refunded' => ($value->refunded) ? round(($value->refunded / $value->totalOrder) * 100, 2): 0,
+                        'processing' => ($value->processing) ? round(($value->processing / $value->totalOrder) * 100, 2) : 0,
+                        'pending' => ($value->pending) ? round(($value->pending / $value->totalOrder) * 100, 2) : 0,
+                        'inProgress' => ($value->inProgress) ? round(($value->inProgress / $value->totalOrder) * 100, 2) : 0,
+                        'partial' => ($value->partial) ? round(($value->partial / $value->totalOrder) * 100, 2) : 0,
+                        'canceled' => ($value->canceled) ? round(($value->canceled / $value->totalOrder) * 100, 2) : 0,
+                        'refunded' => ($value->refunded) ? round(($value->refunded / $value->totalOrder) * 100, 2) : 0,
                     ]
                 ];
             });
@@ -172,8 +174,8 @@ class DashboardController extends Controller
             'commission_type' => 'required',
         ]);
 
-        Referral::where('commission_type',$request->commission_type)->delete();
-        for ($i = 0; $i < count($request->level); $i++){
+        Referral::where('commission_type', $request->commission_type)->delete();
+        for ($i = 0; $i < count($request->level); $i++) {
             $referral = new Referral();
             $referral->commission_type = $request->commission_type;
             $referral->level = $request->level[$i];
@@ -192,7 +194,7 @@ class DashboardController extends Controller
         fwrite($fp, '<?php return ' . var_export(config('basic'), true) . ';');
         fclose($fp);
 
-        config(['basic.deposit_commission' => (int)$reqData['deposit_commission']]);
+        config(['basic.deposit_commission' => (int) $reqData['deposit_commission']]);
         $configure->fill($reqData)->save();
 
         return back()->with('success', 'Update Successfully.');
@@ -253,7 +255,7 @@ class DashboardController extends Controller
             'password' => 'required|min:5|confirmed',
         ]);
 
-        $request = (object)$req;
+        $request = (object) $req;
         $user = $this->user;
         if (!Hash::check($request->current_password, $user->password)) {
             return back()->with('error', "Password didn't match");

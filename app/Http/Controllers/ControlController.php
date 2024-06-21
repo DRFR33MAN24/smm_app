@@ -22,25 +22,28 @@ class ControlController extends Controller
 
     public function index()
     {
-       
-        $control =   BusinessSetting::all();
+
+        $control = BusinessSetting::all();
         $settings = [];
         foreach ($control as $c) {
-            $settings[$c->type] =$c->value;
+            $settings[$c->type] = $c->value;
         }
 
         return view('admin.pages.basic-controls', compact('settings'));
     }
-    public function update(Request $request){
-        BusinessSetting::where('type','=','company_phone')->update(['value'=>$request['company_phone']]);
-        BusinessSetting::where('type','=','company_phone2')->update(['value'=>$request['company_phone2']]);
-         BusinessSetting::where('type','=','usdt_wallet')->update(['value'=>$request['usdt_wallet']]);
-        BusinessSetting::where('type','=','company_email')->update(['value'=>$request['company_email']]);
-        BusinessSetting::where('type','=','currency_conversion_factor')->update(['value'=>$request['currency_conversion_factor']]);
-        BusinessSetting::where('type','=','push_notification_key')->update(['value'=>$request['push_notification_key']]);
-        BusinessSetting::where('type','=','privacy_policy')->update(['value'=>$request['policy']]);
-        BusinessSetting::where('type','=','terms_and_conditions')->update(['value'=>$request['terms']]);
-        BusinessSetting::where('type','=','maintenance_mode')->update(['value'=>$request['ment']]);
+    public function update(Request $request)
+    {
+        BusinessSetting::where('type', '=', 'company_phone')->update(['value' => $request['company_phone']]);
+        BusinessSetting::where('type', '=', 'company_phone2')->update(['value' => $request['company_phone2']]);
+        BusinessSetting::where('type', '=', 'usdt_wallet')->update(['value' => $request['usdt_wallet']]);
+        BusinessSetting::where('type', '=', 'company_email')->update(['value' => $request['company_email']]);
+        BusinessSetting::where('type', '=', 'currency_conversion_factor')->update(['value' => $request['currency_conversion_factor']]);
+        BusinessSetting::where('type', '=', 'push_notification_key')->update(['value' => $request['push_notification_key']]);
+        BusinessSetting::where('type', '=', 'privacy_policy')->update(['value' => $request['policy']]);
+        BusinessSetting::where('type', '=', 'terms_and_conditions')->update(['value' => $request['terms']]);
+        BusinessSetting::where('type', '=', 'maintenance_mode')->update(['value' => $request['ment']]);
+        BusinessSetting::where('type', '=', 'credit_transfer_percent')->update(['value' => $request['credit_transfer_percent']]);
+        BusinessSetting::where('type', '=', 'ticker_text')->update(['value' => $request['ticker_text']]);
         session()->flash('success', ' Updated Successfully');
         return back();
     }
@@ -59,34 +62,34 @@ class ControlController extends Controller
         ]);
 
 
-        if($request->has('base_color')){
-            config(['basic.base_color' =>  $reqData['base_color']]);
+        if ($request->has('base_color')) {
+            config(['basic.base_color' => $reqData['base_color']]);
         }
 
         config(['basic.site_title' => $reqData['site_title']]);
         config(['basic.time_zone' => trim($reqData['time_zone'])]);
         config(['basic.currency' => $reqData['currency']]);
         config(['basic.currency_symbol' => $reqData['currency_symbol']]);
-        config(['basic.fraction_number' => (int)$reqData['fraction_number']]);
-        config(['basic.paginate' => (int)$reqData['paginate']]);
-        config(['basic.is_active_cron_notification' => (int)$reqData['cron_set_up_pop_up']]);
-        config(['basic.error_log' => (int)$reqData['error_log']]);
-        config(['basic.maintenance' => (int)$reqData['maintenance']]);
+        config(['basic.fraction_number' => (int) $reqData['fraction_number']]);
+        config(['basic.paginate' => (int) $reqData['paginate']]);
+        config(['basic.is_active_cron_notification' => (int) $reqData['cron_set_up_pop_up']]);
+        config(['basic.error_log' => (int) $reqData['error_log']]);
+        config(['basic.maintenance' => (int) $reqData['maintenance']]);
         config(['basic.maintenance_message' => $reqData['maintenance_message']]);
 
         $fp = fopen(base_path() . '/config/basic.php', 'w');
         fwrite($fp, '<?php return ' . var_export(config('basic'), true) . ';');
         fclose($fp);
 
-        $reqData['is_active_cron_notification'] = (int)$reqData['cron_set_up_pop_up'];
+        $reqData['is_active_cron_notification'] = (int) $reqData['cron_set_up_pop_up'];
         unset($reqData['cron_set_up_pop_up']);
         $configure->fill($reqData)->save();
 
 
         $envPath = base_path('.env');
         $env = file($envPath);
-        $env = $this->set('APP_DEBUG', ($configure->error_log == 1) ?'true' : 'false', $env);
-        $env = $this->set('APP_TIMEZONE', '"'.$reqData['time_zone'].'"', $env);
+        $env = $this->set('APP_DEBUG', ($configure->error_log == 1) ? 'true' : 'false', $env);
+        $env = $this->set('APP_TIMEZONE', '"' . $reqData['time_zone'] . '"', $env);
 
         $fp = fopen($envPath, 'w');
         fwrite($fp, implode($env));
@@ -114,7 +117,7 @@ class ControlController extends Controller
         $configure = Color::firstOrNew();
         $reqData = Purify::clean($request->except('_token', '_method'));
 
-        if(config('basic.theme') == 'minimal'){
+        if (config('basic.theme') == 'minimal') {
             $request->validate([
                 'primaryColor' => 'required',
                 'subheading' => 'required',
@@ -134,13 +137,13 @@ class ControlController extends Controller
             ]);
 
 
-            config(['color.primaryColor' => str_replace('#','',$reqData['primaryColor']) ]);
-            config(['color.subheading' => str_replace('#','',$reqData['subheading']) ]);
-            config(['color.bggrdleft' => str_replace('#','',$reqData['bggrdleft']) ]);
-            config(['color.bggrdright' =>str_replace('#','',$reqData['bggrdright']) ]);
-            config(['color.bggrdleft2' => str_replace('#','',$reqData['bggrdleft2']) ]);
-            config(['color.btngrdleft' =>str_replace('#','',$reqData['btngrdleft']) ]);
-            config(['color.copyrights' =>str_replace('#','',$reqData['copyrights']) ]);
+            config(['color.primaryColor' => str_replace('#', '', $reqData['primaryColor'])]);
+            config(['color.subheading' => str_replace('#', '', $reqData['subheading'])]);
+            config(['color.bggrdleft' => str_replace('#', '', $reqData['bggrdleft'])]);
+            config(['color.bggrdright' => str_replace('#', '', $reqData['bggrdright'])]);
+            config(['color.bggrdleft2' => str_replace('#', '', $reqData['bggrdleft2'])]);
+            config(['color.btngrdleft' => str_replace('#', '', $reqData['btngrdleft'])]);
+            config(['color.copyrights' => str_replace('#', '', $reqData['copyrights'])]);
 
 
             $fp = fopen(base_path() . '/config/color.php', 'w');
@@ -150,7 +153,7 @@ class ControlController extends Controller
             $configure->fill($reqData)->save();
 
 
-        }else{
+        } else {
 
             $request->validate([
                 'theme_color' => 'required',
@@ -162,9 +165,9 @@ class ControlController extends Controller
                 'secondary_color.required' => 'Secondary color required',
             ]);
 
-            config(['color.theme_color' => $reqData['theme_color'] ]);
-            config(['color.theme_light_color' => $reqData['theme_light_color'] ]);
-            config(['color.secondary_color' => $reqData['secondary_color'] ]);
+            config(['color.theme_color' => $reqData['theme_color']]);
+            config(['color.theme_light_color' => $reqData['theme_light_color']]);
+            config(['color.secondary_color' => $reqData['secondary_color']]);
 
             $fp = fopen(base_path() . '/config/color.php', 'w');
             fwrite($fp, '<?php return ' . var_export(config('color'), true) . ';');
@@ -205,7 +208,7 @@ class ControlController extends Controller
     public function manageTheme()
     {
         $theme = config('theme');
-        return view('admin.pages.manage-theme',compact('theme'));
+        return view('admin.pages.manage-theme', compact('theme'));
     }
 
     public function activateTheme(Request $request, $name)
@@ -228,7 +231,7 @@ class ControlController extends Controller
 
     public function logoSeo()
     {
-        $seo = (object)config('seo');
+        $seo = (object) config('seo');
         return view('admin.pages.logo', compact('seo'));
     }
 
@@ -324,137 +327,137 @@ class ControlController extends Controller
 
 
     public function pluginConfig()
-	{
+    {
         $control = Configure::firstOrNew();
         return view('admin.plugin_panel.pluginConfig', compact('control'));
-	}
+    }
 
     public function tawkConfig(Request $request)
-	{
+    {
         $basicControl = basicControl();
 
-		if ($request->isMethod('get')) {
-			// $currencies = Currency::select('id', 'code', 'name')->where('is_active', 1)->get();
-			return view('admin.plugin_panel.tawkControl', compact('basicControl'));
-		} elseif ($request->isMethod('post')) {
-			$purifiedData = Purify::clean($request->all());
+        if ($request->isMethod('get')) {
+            // $currencies = Currency::select('id', 'code', 'name')->where('is_active', 1)->get();
+            return view('admin.plugin_panel.tawkControl', compact('basicControl'));
+        } elseif ($request->isMethod('post')) {
+            $purifiedData = Purify::clean($request->all());
 
-			$validator = Validator::make($purifiedData, [
-				'tawk_id' => 'required|min:3',
-				'tawk_status' => 'nullable|integer|min:0|in:0,1',
-			]);
+            $validator = Validator::make($purifiedData, [
+                'tawk_id' => 'required|min:3',
+                'tawk_status' => 'nullable|integer|min:0|in:0,1',
+            ]);
 
-			if ($validator->fails()) {
-				return back()->withErrors($validator)->withInput();
-			}
+            if ($validator->fails()) {
+                return back()->withErrors($validator)->withInput();
+            }
 
-			$purifiedData = (object)$purifiedData;
+            $purifiedData = (object) $purifiedData;
 
-			$basicControl->tawk_id = $purifiedData->tawk_id;
-			$basicControl->tawk_status = $purifiedData->tawk_status;
-			$basicControl->save();
+            $basicControl->tawk_id = $purifiedData->tawk_id;
+            $basicControl->tawk_status = $purifiedData->tawk_status;
+            $basicControl->save();
 
-			return back()->with('success', 'Successfully Updated');
-		}
-	}
+            return back()->with('success', 'Successfully Updated');
+        }
+    }
 
     public function fbMessengerConfig(Request $request)
-	{
-		$basicControl = basicControl();
+    {
+        $basicControl = basicControl();
 
-		if ($request->isMethod('get')) {
-			return view('admin.plugin_panel.fbMessengerControl', compact('basicControl'));
-		} elseif ($request->isMethod('post')) {
-			$purifiedData = Purify::clean($request->all());
+        if ($request->isMethod('get')) {
+            return view('admin.plugin_panel.fbMessengerControl', compact('basicControl'));
+        } elseif ($request->isMethod('post')) {
+            $purifiedData = Purify::clean($request->all());
 
-			$validator = Validator::make($purifiedData, [
-				'fb_messenger_status' => 'nullable|integer|min:0|in:0,1',
-				'fb_app_id' => 'required|min:3',
-				'fb_page_id' => 'required|min:3',
-			]);
+            $validator = Validator::make($purifiedData, [
+                'fb_messenger_status' => 'nullable|integer|min:0|in:0,1',
+                'fb_app_id' => 'required|min:3',
+                'fb_page_id' => 'required|min:3',
+            ]);
 
-			if ($validator->fails()) {
-				return back()->withErrors($validator)->withInput();
-			}
-			$purifiedData = (object)$purifiedData;
+            if ($validator->fails()) {
+                return back()->withErrors($validator)->withInput();
+            }
+            $purifiedData = (object) $purifiedData;
 
-			$basicControl->fb_app_id = $purifiedData->fb_app_id;
-			$basicControl->fb_page_id = $purifiedData->fb_page_id;
-			$basicControl->fb_messenger_status = $purifiedData->fb_messenger_status;
+            $basicControl->fb_app_id = $purifiedData->fb_app_id;
+            $basicControl->fb_page_id = $purifiedData->fb_page_id;
+            $basicControl->fb_messenger_status = $purifiedData->fb_messenger_status;
 
-			$basicControl->save();
+            $basicControl->save();
 
-			return back()->with('success', 'Successfully Updated');
-		}
-	}
+            return back()->with('success', 'Successfully Updated');
+        }
+    }
 
-	public function googleRecaptchaConfig(Request $request)
-	{
-		$basicControl = basicControl();
+    public function googleRecaptchaConfig(Request $request)
+    {
+        $basicControl = basicControl();
 
-		if ($request->isMethod('get')) {
-			return view('admin.plugin_panel.googleReCaptchaControl', compact('basicControl'));
-		} elseif ($request->isMethod('post')) {
-			$purifiedData = Purify::clean($request->all());
+        if ($request->isMethod('get')) {
+            return view('admin.plugin_panel.googleReCaptchaControl', compact('basicControl'));
+        } elseif ($request->isMethod('post')) {
+            $purifiedData = Purify::clean($request->all());
 
-			$validator = Validator::make($purifiedData, [
-				'reCaptcha_status_login' => 'nullable|integer|min:0|in:0,1',
-				'reCaptcha_status_registration' => 'nullable|integer|min:0|in:0,1',
-				'NOCAPTCHA_SECRET' => 'required|min:3',
-				'NOCAPTCHA_SITEKEY' => 'required|min:3',
-			]);
+            $validator = Validator::make($purifiedData, [
+                'reCaptcha_status_login' => 'nullable|integer|min:0|in:0,1',
+                'reCaptcha_status_registration' => 'nullable|integer|min:0|in:0,1',
+                'NOCAPTCHA_SECRET' => 'required|min:3',
+                'NOCAPTCHA_SITEKEY' => 'required|min:3',
+            ]);
 
-			if ($validator->fails()) {
-				return back()->withErrors($validator)->withInput();
-			}
-			$purifiedData = (object)$purifiedData;
+            if ($validator->fails()) {
+                return back()->withErrors($validator)->withInput();
+            }
+            $purifiedData = (object) $purifiedData;
 
-			$basicControl->reCaptcha_status_login = $purifiedData->reCaptcha_status_login;
-			$basicControl->reCaptcha_status_registration = $purifiedData->reCaptcha_status_registration;
-			$basicControl->save();
+            $basicControl->reCaptcha_status_login = $purifiedData->reCaptcha_status_login;
+            $basicControl->reCaptcha_status_registration = $purifiedData->reCaptcha_status_registration;
+            $basicControl->save();
 
 
-			$envPath = base_path('.env');
-			$env = file($envPath);
-			$env = $this->set('NOCAPTCHA_SECRET', $purifiedData->NOCAPTCHA_SECRET, $env);
-			$env = $this->set('NOCAPTCHA_SITEKEY', $purifiedData->NOCAPTCHA_SITEKEY, $env);
-			$fp = fopen($envPath, 'w');
-			fwrite($fp, implode($env));
-			fclose($fp);
+            $envPath = base_path('.env');
+            $env = file($envPath);
+            $env = $this->set('NOCAPTCHA_SECRET', $purifiedData->NOCAPTCHA_SECRET, $env);
+            $env = $this->set('NOCAPTCHA_SITEKEY', $purifiedData->NOCAPTCHA_SITEKEY, $env);
+            $fp = fopen($envPath, 'w');
+            fwrite($fp, implode($env));
+            fclose($fp);
 
-			Artisan::call('config:clear');
-			Artisan::call('cache:clear');
+            Artisan::call('config:clear');
+            Artisan::call('cache:clear');
 
-			return back()->with('success', 'Successfully Updated');
-		}
-	}
+            return back()->with('success', 'Successfully Updated');
+        }
+    }
 
-	public function googleAnalyticsConfig(Request $request)
-	{
-		$basicControl = basicControl();
+    public function googleAnalyticsConfig(Request $request)
+    {
+        $basicControl = basicControl();
 
-		if ($request->isMethod('get')) {
-			return view('admin.plugin_panel.analyticControl', compact('basicControl'));
-		} elseif ($request->isMethod('post')) {
-			$purifiedData = Purify::clean($request->all());
+        if ($request->isMethod('get')) {
+            return view('admin.plugin_panel.analyticControl', compact('basicControl'));
+        } elseif ($request->isMethod('post')) {
+            $purifiedData = Purify::clean($request->all());
 
-			$validator = Validator::make($purifiedData, [
-				'MEASUREMENT_ID' => 'required|min:3',
-				'analytic_status' => 'nullable|integer|min:0|in:0,1',
-			]);
+            $validator = Validator::make($purifiedData, [
+                'MEASUREMENT_ID' => 'required|min:3',
+                'analytic_status' => 'nullable|integer|min:0|in:0,1',
+            ]);
 
-			if ($validator->fails()) {
-				return back()->withErrors($validator)->withInput();
-			}
-			$purifiedData = (object)$purifiedData;
+            if ($validator->fails()) {
+                return back()->withErrors($validator)->withInput();
+            }
+            $purifiedData = (object) $purifiedData;
 
-			$basicControl->MEASUREMENT_ID = $purifiedData->MEASUREMENT_ID;
-			$basicControl->analytic_status = $purifiedData->analytic_status;
-			$basicControl->save();
+            $basicControl->MEASUREMENT_ID = $purifiedData->MEASUREMENT_ID;
+            $basicControl->analytic_status = $purifiedData->analytic_status;
+            $basicControl->save();
 
-			return back()->with('success', 'Successfully Updated');
-		}
-	}
+            return back()->with('success', 'Successfully Updated');
+        }
+    }
 
 
 

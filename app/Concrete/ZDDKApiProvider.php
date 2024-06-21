@@ -183,7 +183,7 @@ class ZDDKApiProvider implements ApiProviderInterface
             ->get();
 
         $apidata = json_decode($apiservicedata);
-        if (isset($apidata->status)) {
+        if ($apidata->status == "OK") {
             $order->status = (strtolower($apidata->data[0]->status) == 'wait') ? 'progress' : strtolower($apidata->data[0]->status);
 
             $order->reason = @$apidata->reason;
@@ -214,19 +214,19 @@ class ZDDKApiProvider implements ApiProviderInterface
 
 
         Log::info($postData);
-        $apiservicedata = Curl::to($apiProvider['url'] . '/newOrder/' . $$detials['service_id'] . '/params')->
+        $apiservicedata = Curl::to($apiProvider['url'] . '/newOrder/' . $detials['service_id'] . '/params')->
             withHeaders(array('api-token' => $apiProvider['api_key']))->
             withData($postData)->get();
 
         Log::info($apiservicedata);
         $apidata = json_decode($apiservicedata);
 
-        if (isset($apidata->order)) {
-            $result['order_id'] = $apidata->order;
-            $result['message'] = $apidata->order;
+        if ($apidata->status == "OK") {
+            $result['order_id'] = $apidata->data->order_id;
+            $result['message'] = "Order placed successfully";
 
         } else {
-            $result['error'] = $apidata->error;
+            $result['error'] = $apidata->msg;
         }
 
         return $result;
@@ -236,14 +236,16 @@ class ZDDKApiProvider implements ApiProviderInterface
     {
         $result = [];
 
-        $apiServiceData = $this->getAllProviderServices();
+        $apiServiceData = $this->getAllProviderServices($apiProvider);
+        $success = false;
         foreach ($apiServiceData as $current) {
-            if ($current->service == $serviceId) {
-                $success = 'Successfully Update Api service';
-                $result['rate'] = $current->rate / $apiProvider->rate;
+
+            if ($current->id == $serviceId) {
+                $success = true;
+                $result['rate'] = $current->price / $apiProvider->rate;
 
                 return $result;
-                break;
+
             }
         }
         if (!isset($success)) {

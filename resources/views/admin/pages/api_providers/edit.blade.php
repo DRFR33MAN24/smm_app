@@ -29,7 +29,7 @@
                         </div>
                                                 <div class="form-group ">
                             <label>@lang('API User')</label>
-                            <input type="text" name="api_user"  value="{{ old('api_key',$provider->api_user) }}"   class="form-control form-control-sm">
+                            <input type="text" name="api_user"  value="{{ old('api_user',$provider->api_user) }}"   class="form-control form-control-sm">
                             <div class="invalid-feedback">@lang('Please fill in the api user')</div>
                             @error('api_user')
                             <span class="text-danger">{{ $message }}</span>
